@@ -83,6 +83,17 @@ def remove_all_files():
         except Exception as e:
             print(f"⚠️ Failed to remove {path}: {e}")
 
+def safe_parse_datetime(date_str):
+    """Parse datetime string with fallback handling"""
+    try:
+        return datetime.datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        try:
+            return datetime.datetime.strptime(date_str, "%Y-%m-%d")
+        except ValueError:
+            # If parsing fails completely, return current datetime
+            return datetime.datetime.now()
+
 def get_ip_location():
     try:
         ip = requests.get("https://api.ipify.org?format=json", timeout=5).json().get("ip")
@@ -129,10 +140,11 @@ def load_license():
     return None
 
 def should_reset(last_reset, mode):
-    now = datetime.datetime.now().date()
-    then = datetime.datetime.strptime(last_reset, "%Y-%m-%d").date()
+    now = datetime.datetime.now()
+    then = safe_parse_datetime(last_reset)
+    
     if mode == "daily":
-        return now > then
+        return now.date() > then.date()
     elif mode == "weekly":
         return (now - then).days >= 7
     elif mode == "monthly":
@@ -143,28 +155,50 @@ def should_reset(last_reset, mode):
 
 def reset_credit(data):
     data["credit"] = data.get("max_credit", data["credit"])
-    data["last_reset"] = datetime.datetime.now().strftime("%Y-%m-%d")
+    data["last_reset"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     sync_to_all_locations(data)
 
 def create_or_update_license():
+    fingerprint = get_device_fingerprint()
     license_key = input("🔑 Enter license key: ").strip()
     credit = int(input("💳 Enter credit amount: ").strip())
     expiry = input("📆 Enter expiry date (YYYY-MM-DD): ").strip()
     reset_mode = input("🔁 Credit reset mode (daily/weekly/monthly/yearly): ").strip().lower()
 
     current_ip, current_location = get_ip_location()
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Check if license already exists to determine if it's activation or update
+    existing_data = load_license()
+    is_update = existing_data is not None
+    
     data = {
+        "mac": fingerprint,
         "license": license_key,
         "credit": credit,
         "max_credit": credit,
         "expiry": expiry,
         "reset_mode": reset_mode,
-        "last_reset": datetime.datetime.now().strftime("%Y-%m-%d"),
+        "last_reset": current_time,
+        "activate_time": current_time,  # Always update activation time
         "ip": current_ip,
         "location": current_location
     }
+    
+    # If updating existing license, preserve original activate_time if user wants
+    if is_update and existing_data.get("activate_time"):
+        preserve = input("🔄 Keep original activation time? (y/n): ").strip().lower()
+        if preserve == 'y':
+            data["activate_time"] = existing_data["activate_time"]
+            print(f"📅 Preserving original activation time: {existing_data['activate_time']}")
+        else:
+            print(f"📅 Updated activation time: {current_time}")
+    else:
+        print(f"📅 License activated at: {current_time}")
+    
     sync_to_all_locations(data)
-    print("✅ License saved.")
+    action = "updated" if is_update else "created and activated"
+    print(f"✅ License {action}.")
 
 def update_expiry():
     data = load_license()
@@ -173,28 +207,50 @@ def update_expiry():
         return
     new_expiry = input("📆 Enter new expiry date (YYYY-MM-DD): ").strip()
     data["expiry"] = new_expiry
+    
+    # Update activate_time when expiry is updated
+    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    update_activation = input("🔄 Update activation time? (y/n): ").strip().lower()
+    if update_activation == 'y':
+        data["activate_time"] = current_time
+        print(f"📅 Activation time updated: {current_time}")
+    
     sync_to_all_locations(data)
     print("✅ Expiry date updated.")
+
+def is_expired(data):
+    try:
+        expiry = datetime.datetime.strptime(data["expiry"], "%Y-%m-%d").date()
+        return datetime.datetime.now().date() > expiry
+    except Exception:
+        return False
 
 def check_expiry():
     data = load_license()
     if not data:
         print("⚠️ No valid license found.")
         return
-    expiry = datetime.datetime.strptime(data["expiry"], "%Y-%m-%d").date()
-    now = datetime.datetime.now().date()
-    if now > expiry:
-        print("❌ License expired.")
-    else:
-        print(f"✅ License valid until {data['expiry']}")
+    try:
+        expiry = datetime.datetime.strptime(data["expiry"], "%Y-%m-%d").date()
+        now = datetime.datetime.now().date()
+        if now > expiry:
+            print("❌ License expired.")
+        else:
+            print(f"✅ License valid until {data['expiry']}")
+    except ValueError:
+        print("❌ Invalid expiry date format.")
 
 def use_credit():
     data = load_license()
     if not data:
         print("⚠️ No valid license found.")
         return
+    if is_expired(data):
+        print("❌ License expired. Cannot use credits.")
+        return
     if should_reset(data["last_reset"], data["reset_mode"]):
         reset_credit(data)
+        data = load_license()  # Reload updated data
     if data["credit"] > 0:
         data["credit"] -= 1
         sync_to_all_locations(data)
@@ -202,16 +258,85 @@ def use_credit():
     else:
         print("❌ No credits left.")
 
+def get_next_reset_date(last_reset, mode):
+    """Calculate next reset date based on mode"""
+    then = safe_parse_datetime(last_reset)
+    
+    if mode == "daily":
+        return then + datetime.timedelta(days=1)
+    elif mode == "weekly":
+        return then + datetime.timedelta(days=7)
+    elif mode == "monthly":
+        if then.month == 12:
+            return then.replace(year=then.year + 1, month=1)
+        else:
+            return then.replace(month=then.month + 1)
+    elif mode == "yearly":
+        return then.replace(year=then.year + 1)
+    return None
+
 def view_license():
     data = load_license()
     if not data:
         print("⚠️ No valid license found.")
         return
+    
+    if is_expired(data):
+        print("❌ License expired. Cannot view details.")
+        return
+    
+    # Check if reset is needed
     if should_reset(data["last_reset"], data["reset_mode"]):
         reset_credit(data)
+        data = load_license()  # Reload updated data
+    
     print("🔐 License Info:")
-    for k, v in data.items():
-        print(f"  {k.capitalize():<12}: {v}")
+    
+    # Define display order and labels
+    display_fields = [
+        ("license", "License"),
+        ("mac", "MAC Address"),
+        ("credit", "Credit"),
+        ("max_credit", "Max Credit"),
+        ("expiry", "Expiry"),
+        ("reset_mode", "Reset Mode"),
+        ("activate_time", "Activated"),  # Added activate_time field
+        ("last_reset", "Last Reset"),
+        ("ip", "IP"),
+        ("location", "Location")
+    ]
+    
+    # Display each field with proper formatting
+    for key, label in display_fields:
+        if key in data and data[key] is not None:
+            value = data[key]
+            
+            # Format datetime fields
+            if key in ["last_reset", "activate_time"]:
+                try:
+                    dt = safe_parse_datetime(str(value))
+                    value = dt.strftime("%Y-%m-%d %H:%M:%S")
+                except:
+                    pass
+            
+            print(f"  {label:<12}: {value}")
+    
+    next_reset = get_next_reset_date(data["last_reset"], data["reset_mode"])
+    if next_reset:
+        print(f"  {'Next Reset':<12}: {next_reset.strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    # Show license age
+    if data.get("activate_time"):
+        try:
+            activate_dt = safe_parse_datetime(data["activate_time"])
+            age = datetime.datetime.now() - activate_dt
+            days = age.days
+            hours = age.seconds // 3600
+            print(f"  {'License Age':<12}: {days} days, {hours} hours")
+        except:
+            pass
+    
+    return data
 
 def show_paths():
     print("\n📂 License File Paths:")
