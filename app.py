@@ -145,13 +145,13 @@ def should_reset(last_reset, mode):
     now = datetime.datetime.now()
     then = safe_parse_datetime(last_reset)
 
-    if mode == "daily":
+    if mode == "Daily":
         return now.date() > then.date()
-    elif mode == "weekly":
+    elif mode == "Weekly":
         return (now - then).days >= 7
-    elif mode == "monthly":
+    elif mode == "Monthly":
         return now.month != then.month or now.year != then.year
-    elif mode == "yearly":
+    elif mode == "Yearly":
         return now.year != then.year
     return False
 
@@ -287,16 +287,16 @@ def get_next_reset_date(last_reset, mode):
     """Calculate next reset date based on mode"""
     then = safe_parse_datetime(last_reset)
     
-    if mode == "daily":
+    if mode == "Daily":
         return then + datetime.timedelta(days=1)
-    elif mode == "weekly":
+    elif mode == "Weekly":
         return then + datetime.timedelta(days=7)
-    elif mode == "monthly":
+    elif mode == "Monthly":
         if then.month == 12:
             return then.replace(year=then.year + 1, month=1)
         else:
             return then.replace(month=then.month + 1)
-    elif mode == "yearly":
+    elif mode == "Yearly":
         return then.replace(year=then.year + 1)
     return None
 
