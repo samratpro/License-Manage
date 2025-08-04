@@ -162,8 +162,9 @@ def reset_credit(data):
 def create_or_update_license():
     fingerprint = get_device_fingerprint()
     license_key = input("🔑 Enter license key: ").strip()
+    price = int(input("💳 Enter price: ").strip())
     credit = int(input("💳 Enter credit amount: ").strip())
-    license_type = input("🔑 Enter license Type (e.g Monthly/Yearly/Lifetime): ").strip()
+    license_type = input("🔑 Enter license Type (e.g Monthly/Yearly/Lifetime/Trail): ").strip()
     expiry_input = input("📆 Enter license duration in days (or 'Never'): ").strip()
     if expiry_input.lower() == "never":
         expiry = "Never"
@@ -190,6 +191,7 @@ def create_or_update_license():
     data = {
         "mac": fingerprint,
         "license": license_key,
+        "price": price,
         "credit": credit,
         "max_credit": credit,
         "license_type": license_type,
@@ -279,43 +281,43 @@ def view_license():
             print(f"  {'License Age':<12}: {days} days, {hours} hours")
         except:
             pass
-
+    print("data : ", data)
     return data
 
-def show_paths():
-    print("\n📂 License File Paths:")
-    for path in LOCATIONS:
-        exists = "✅" if os.path.exists(path) else "❌"
-        print(f"  {exists} {path}")
+# def show_paths():
+#     print("\n📂 License File Paths:")
+#     for path in LOCATIONS:
+#         exists = "✅" if os.path.exists(path) else "❌"
+#         print(f"  {exists} {path}")
 
-def main():
-    while True:
-        print("\n=== Secure License Console ===")
-        print("1. View License Info")
-        print("2. Use 1 Credit")
-        print("3. Set License (Full)")
-        print("4. Remove License")
-        print("5. Show License Paths")
-        print("6. Exit")
-
-        choice = input("Choose (1–8): ").strip()
-
-        if choice == "1":
-            view_license()
-        elif choice == "2":
-            use_credit()
-        elif choice == "3":
-            create_or_update_license()
-        elif choice == "4":
-            remove_all_files()
-            print("🧹 License removed.")
-        elif choice == "5":
-            show_paths()
-        elif choice == "6":
-            print("👋 Exiting.")
-            break
-        else:
-            print("❌ Invalid choice.")
-
-if __name__ == "__main__":
-    main()
+# def main():
+#     while True:
+#         print("\n=== Secure License Console ===")
+#         print("1. View License Info")
+#         print("2. Use 1 Credit")
+#         print("3. Set License (Full)")
+#         print("4. Remove License")
+#         print("5. Show License Paths")
+#         print("6. Exit")
+#
+#         choice = input("Choose (1–8): ").strip()
+#
+#         if choice == "1":
+#             view_license()
+#         elif choice == "2":
+#             use_credit()
+#         elif choice == "3":
+#             create_or_update_license()
+#         elif choice == "4":
+#             remove_all_files()
+#             print("🧹 License removed.")
+#         elif choice == "5":
+#             show_paths()
+#         elif choice == "6":
+#             print("👋 Exiting.")
+#             break
+#         else:
+#             print("❌ Invalid choice.")
+#
+# if __name__ == "__main__":
+#     main()
