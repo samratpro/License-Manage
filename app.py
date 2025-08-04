@@ -140,16 +140,18 @@ def load_license():
     return None
 
 def should_reset(last_reset, mode):
+    if mode == "Unlimited":
+        return False
     now = datetime.datetime.now()
     then = safe_parse_datetime(last_reset)
-    
-    if mode == "Daily":
+
+    if mode == "daily":
         return now.date() > then.date()
-    elif mode == "Weekly":
+    elif mode == "weekly":
         return (now - then).days >= 7
-    elif mode == "Monthly":
+    elif mode == "monthly":
         return now.month != then.month or now.year != then.year
-    elif mode == "Yearly":
+    elif mode == "yearly":
         return now.year != then.year
     return False
 
@@ -162,9 +164,22 @@ def create_or_update_license():
     fingerprint = get_device_fingerprint()
     license_key = input("🔑 Enter license key: ").strip()
     credit = int(input("💳 Enter credit amount: ").strip())
-    license_type = input("🔑 Enter license Type: ").strip()
-    expiry = input("📆 Enter expiry date (YYYY-MM-DD): ").strip()
-    reset_mode = input("🔁 Credit reset mode (Daily/Weekly/Monthly/Yearly): ").strip().lower()
+    license_type = input("🔑 Enter license Type (e.g Monthly/Yearly/Lifetime): ").strip()
+    expiry_input = input("📆 Enter license duration in days (or 'Never'): ").strip()
+    if expiry_input.lower() == "never":
+        expiry = "Never"
+    else:
+        try:
+            days = int(expiry_input)
+            expiry_date = datetime.datetime.now() + datetime.timedelta(days=days)
+            expiry = expiry_date.strftime("%Y-%m-%d")
+        except ValueError:
+            print("❌ Invalid input. Please enter a number or 'Never'.")
+            return
+    reset_mode = input("🔁 Credit reset mode (Daily/Weekly/Monthly/Yearly/Unlimited): ").strip()
+    if reset_mode not in ["Daily", "Weekly", "Monthly", "Yearly", "Unlimited"]:
+        print("❌ Invalid reset mode.")
+        return
 
     current_ip, current_location = get_ip_location()
     current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -222,6 +237,8 @@ def update_expiry():
 
 def is_expired(data):
     try:
+        if data["expiry"] == "Never":
+            return False
         expiry = datetime.datetime.strptime(data["expiry"], "%Y-%m-%d").date()
         return datetime.datetime.now().date() > expiry
     except Exception:
@@ -232,15 +249,19 @@ def check_expiry():
     if not data:
         print("⚠️ No valid license found.")
         return
-    try:
-        expiry = datetime.datetime.strptime(data["expiry"], "%Y-%m-%d").date()
-        now = datetime.datetime.now().date()
-        if now > expiry:
-            print("❌ License expired.")
-        else:
-            print(f"✅ License valid until {data['expiry']}")
-    except ValueError:
-        print("❌ Invalid expiry date format.")
+    expiry = data.get("expiry")
+    if expiry == "Never":
+        print("♾️ License is lifetime (never expires).")
+    else:
+        try:
+            expiry_date = datetime.datetime.strptime(expiry, "%Y-%m-%d").date()
+            now = datetime.datetime.now().date()
+            if now > expiry_date:
+                print("❌ License expired.")
+            else:
+                print(f"✅ License valid until {expiry}")
+        except ValueError:
+            print("❌ Invalid expiry date format.")
 
 def use_credit():
     data = load_license()
@@ -264,16 +285,16 @@ def get_next_reset_date(last_reset, mode):
     """Calculate next reset date based on mode"""
     then = safe_parse_datetime(last_reset)
     
-    if mode == "Daily":
+    if mode == "daily":
         return then + datetime.timedelta(days=1)
-    elif mode == "Weekly":
+    elif mode == "weekly":
         return then + datetime.timedelta(days=7)
-    elif mode == "Monthly":
+    elif mode == "monthly":
         if then.month == 12:
             return then.replace(year=then.year + 1, month=1)
         else:
             return then.replace(month=then.month + 1)
-    elif mode == "Yearly":
+    elif mode == "yearly":
         return then.replace(year=then.year + 1)
     return None
 
