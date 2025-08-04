@@ -163,8 +163,9 @@ def reset_credit(data):
 def create_or_update_license():
     fingerprint = get_device_fingerprint()
     license_key = input("🔑 Enter license key: ").strip()
+    price = int(input("💳 Enter Price: ").strip())
     credit = int(input("💳 Enter credit amount: ").strip())
-    license_type = input("🔑 Enter license Type (e.g Monthly/Yearly/Lifetime): ").strip()
+    license_type = input("🔑 Enter license Type (e.g Monthly/Yearly/Lifetime/Trail): ").strip()
     expiry_input = input("📆 Enter license duration in days (or 'Never'): ").strip()
     if expiry_input.lower() == "never":
         expiry = "Never"
@@ -191,6 +192,7 @@ def create_or_update_license():
     data = {
         "mac": fingerprint,
         "license": license_key,
+        "price": price,
         "credit": credit,
         "max_credit": credit,
         "license_type": license_type,
@@ -320,6 +322,7 @@ def view_license():
     display_fields = [
         ("license", "License"),
         ("mac", "MAC Address"),
+        ("price", "Price"),
         ("credit", "Credit"),
         ("max_credit", "Max Credit"),
         ("license_type", "License Type"),
