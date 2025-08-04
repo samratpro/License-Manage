@@ -144,13 +144,13 @@ def should_reset(last_reset, mode):
     now = datetime.datetime.now()
     then = safe_parse_datetime(last_reset)
 
-    if mode == "daily":
+    if mode == "Daily":
         return now.date() > then.date()
-    elif mode == "weekly":
+    elif mode == "Weekly":
         return (now - then).days >= 7
-    elif mode == "monthly":
+    elif mode == "Monthly":
         return now.month != then.month or now.year != then.year
-    elif mode == "yearly":
+    elif mode == "Yearly":
         return now.year != then.year
     return False
 
@@ -159,13 +159,13 @@ def reset_credit(data):
     data["last_reset"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     sync_to_all_locations(data)
 
-def create_or_update_license():
+def create_or_update_license(license_key, price, credit, license_type, expiry_input, reset_mode):
     fingerprint = get_device_fingerprint()
-    license_key = input("🔑 Enter license key: ").strip()
-    price = int(input("💳 Enter price: ").strip())
-    credit = int(input("💳 Enter credit amount: ").strip())
-    license_type = input("🔑 Enter license Type (e.g Monthly/Yearly/Lifetime/Trail): ").strip()
-    expiry_input = input("📆 Enter license duration in days (or 'Never'): ").strip()
+    # license_key = input("🔑 Enter license key: ").strip()
+    # price = int(input("💳 Enter price: ").strip())
+    # credit = int(input("💳 Enter credit amount: ").strip())
+    # license_type = input("🔑 Enter license Type (e.g Monthly/Yearly/Lifetime/Trail): ").strip()
+    # expiry_input = input("📆 Enter license duration in days (or 'Never'): ").strip()
     if expiry_input.lower() == "never":
         expiry = "Never"
     else:
@@ -176,7 +176,7 @@ def create_or_update_license():
         except ValueError:
             print("❌ Invalid input. Please enter a number or 'Never'.")
             return
-    reset_mode = input("🔁 Credit reset mode (Daily/Weekly/Monthly/Yearly/Unlimited): ").strip()
+    # reset_mode = input("🔁 Credit reset mode (Daily/Weekly/Monthly/Yearly/Unlimited): ").strip()
     if reset_mode not in ["Daily", "Weekly", "Monthly", "Yearly", "Unlimited"]:
         print("❌ Invalid reset mode.")
         return
@@ -238,16 +238,16 @@ def use_credit():
 def get_next_reset_date(last_reset, mode):
     """Calculate next reset date based on mode"""
     then = safe_parse_datetime(last_reset)
-    if mode == "daily":
+    if mode == "Daily":
         return then + datetime.timedelta(days=1)
-    elif mode == "weekly":
+    elif mode == "Weekly":
         return then + datetime.timedelta(days=7)
-    elif mode == "monthly":
+    elif mode == "Monthly":
         if then.month == 12:
             return then.replace(year=then.year + 1, month=1)
         else:
             return then.replace(month=then.month + 1)
-    elif mode == "yearly":
+    elif mode == "Yearly":
         return then.replace(year=then.year + 1)
     return None
 
