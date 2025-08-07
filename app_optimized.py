@@ -8,14 +8,15 @@ import requests
 from cryptography.fernet import Fernet, InvalidToken
 
 APP_NAME = "MS_Windows_AppData"
+app_serial = "_gum0"
 SALT = b"UltraSecretSalt_ChangeMe"
 
 LOCATIONS = [
-    os.path.join(os.getenv("APPDATA"), APP_NAME, "license1.dat"),
-    os.path.join(os.getenv("LOCALAPPDATA"), APP_NAME, "system", "cache.lic"),
-    os.path.join(os.getenv("PROGRAMDATA"), "System32Hidden", "data", "core.lic"),
-    os.path.join(os.getenv("TEMP"), ".hidden_secure", "session.sec"),
-    os.path.join("C:\\ProgramData\\.sys_" + APP_NAME, "hidden.lic"),
+    os.path.join(os.getenv("APPDATA"), APP_NAME, f"license{app_serial}.dat"),
+    os.path.join(os.getenv("LOCALAPPDATA"), APP_NAME, "system", f"cache{app_serial}.lic"),
+    os.path.join(os.getenv("PROGRAMDATA"), "System32Hidden", "data", f"core{app_serial}.lic"),
+    os.path.join(os.getenv("TEMP"), ".hidden_secure", f"session{app_serial}.sec"),
+    os.path.join("C:\\ProgramData\\.sys_" + APP_NAME, f"hidden{app_serial}.lic"),
 ]
 
 def get_device_fingerprint():
